@@ -26,7 +26,7 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
@@ -35,31 +35,49 @@ export default function Home() {
       sender: "user", 
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
     };
+    
     setMessages((prev) => [...prev, userMessage]);
     const currentInput = input;
     setInput(""); // Clear input field
     setIsLoading(true);
 
-    // Mock bot response logic
-    setTimeout(() => {
-      let botResponse = "";
-      const lowerInput = currentInput.toLowerCase().trim();
+    try {
+      const response = await fetch("http://localhost:5001/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          message: currentInput,
+          // Convert history to Gemini format, ensuring it starts with a 'user' message
+          history: messages
+            .slice(1) // Skip the very first message (welcome message) to ensure history starts with user
+            .map(msg => ({
+              role: msg.sender === "user" ? "user" : "model",
+              parts: [{ text: msg.text }]
+            }))
+        }),
+      });
 
-      if (lowerInput === "hello") {
-        botResponse = "Hi! How can I help you?";
-      } else if (lowerInput === "how are you") {
-        botResponse = "I'm just a bot, but I'm doing great!";
-      } else {
-        botResponse = "I didn’t understand that.";
-      }
+      if (!response.ok) throw new Error("Failed to connect to backend");
+
+      const data = await response.json();
 
       setMessages((prev) => [...prev, { 
-        text: botResponse, 
+        text: data.text, 
         sender: "bot", 
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
       }]);
+    } catch (error) {
+      console.error("Chat API Error:", error);
+      setMessages((prev) => [...prev, { 
+        text: "I'm sorry, I'm having trouble connecting to my brain right now. Please make sure the backend is running.", 
+        sender: "bot", 
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+      }]);
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   return (
