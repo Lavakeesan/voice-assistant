@@ -9,12 +9,49 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
     setIsMounted(true);
     // Set initial message timestamp on client to avoid hydration mismatch
     setMessages(prev => prev.map(m => m.timestamp === null ? { ...m, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) } : m));
+
+    // Initialize Speech Recognition
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = "ta-IN"; // Changed to Tamil (India)
+
+        recognitionRef.current.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(transcript);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onerror = (event) => {
+          // "aborted" is a common event when stopping manually, we can ignore it
+          if (event.error === "aborted") return;
+          
+          console.error("Speech recognition error:", event.error);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
   }, []);
 
   // Auto-scroll to latest message
@@ -25,6 +62,23 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+          setIsListening(true);
+        } catch (err) {
+          console.error("Failed to start recognition:", err);
+        }
+      } else {
+        alert("Speech recognition is not supported in this browser. Try Chrome or Safari.");
+      }
+    }
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -141,35 +195,55 @@ export default function Home() {
           onSubmit={handleSend}
           className="max-w-3xl mx-auto relative flex items-center"
         >
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Message AI Assistant..."
-            className="w-full pl-4 pr-16 py-3.5 rounded-2xl border border-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-inner"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || isLoading}
-            className="absolute right-2 p-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-zinc-700 text-white transition-all disabled:cursor-not-allowed group shadow-md"
-            title="Send Message"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
-            >
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
+          <div className="flex-1 relative flex items-center">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={isListening ? "Listening..." : "Message AI Assistant..."}
+              className={`w-full pl-4 pr-24 py-3.5 rounded-2xl border border-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-inner ${isListening ? "placeholder-blue-500 font-medium" : ""}`}
+            />
+            <div className="absolute right-2 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`p-2 rounded-xl transition-all ${
+                  isListening 
+                    ? "bg-red-500 text-white animate-pulse" 
+                    : "text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700"
+                }`}
+                title={isListening ? "Stop listening" : "Voice message"}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                  <line x1="12" y1="19" x2="12" y2="22"></line>
+                </svg>
+              </button>
+              <button
+                type="submit"
+                disabled={!input.trim() || isLoading}
+                className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-zinc-700 text-white transition-all disabled:cursor-not-allowed group shadow-md"
+                title="Send Message"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </button>
+            </div>
+          </div>
         </form>
         <div className="max-w-3xl mx-auto mt-2 flex justify-between items-center text-[10px] text-gray-400 uppercase tracking-widest font-medium">
           <span>Press Enter to send</span>
