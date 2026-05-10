@@ -10,6 +10,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [language, setLanguage] = useState("ta-IN"); // Default to Tamil
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
 
@@ -25,7 +26,7 @@ export default function Home() {
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = false;
         recognitionRef.current.interimResults = false;
-        recognitionRef.current.lang = "ta-IN"; // Changed to Tamil (India)
+        recognitionRef.current.lang = language; 
 
         recognitionRef.current.onresult = (event) => {
           const transcript = event.results[0][0].transcript;
@@ -34,9 +35,7 @@ export default function Home() {
         };
 
         recognitionRef.current.onerror = (event) => {
-          // "aborted" is a common event when stopping manually, we can ignore it
           if (event.error === "aborted") return;
-          
           console.error("Speech recognition error:", event.error);
           setIsListening(false);
         };
@@ -53,6 +52,13 @@ export default function Home() {
       }
     };
   }, []);
+
+  // Update recognition language when state changes
+  useEffect(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.lang = language;
+    }
+  }, [language]);
 
   // Auto-scroll to latest message
   const scrollToBottom = () => {
@@ -138,13 +144,37 @@ export default function Home() {
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-zinc-950 font-sans">
       {/* Header */}
       <header className="p-4 border-b bg-white dark:bg-zinc-900 dark:border-zinc-800 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"></path><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M2 14h2"></path><path d="M20 14h2"></path><path d="M15 13v2"></path><path d="M9 13v2"></path></svg>
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"></path><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M2 14h2"></path><path d="M20 14h2"></path><path d="M15 13v2"></path><path d="M9 13v2"></path></svg>
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">AI Assistant</h1>
+              <p className="text-xs text-green-500 font-medium">Online</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">AI Assistant</h1>
-            <p className="text-xs text-green-500 font-medium">Online</p>
+
+          {/* Language Toggle */}
+          <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-xl border dark:border-zinc-700">
+            <button 
+              onClick={() => setLanguage("ta-IN")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${language === "ta-IN" ? "bg-white dark:bg-zinc-700 shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"}`}
+            >
+              தமிழ்
+            </button>
+            <button 
+              onClick={() => setLanguage("si-LK")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${language === "si-LK" ? "bg-white dark:bg-zinc-700 shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"}`}
+            >
+              සිංහල
+            </button>
+            <button 
+              onClick={() => setLanguage("en-US")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${language === "en-US" ? "bg-white dark:bg-zinc-700 shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"}`}
+            >
+              EN
+            </button>
           </div>
         </div>
       </header>
